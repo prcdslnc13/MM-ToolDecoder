@@ -2,11 +2,13 @@ const path = require('path');
 const { parseAspire12 } = require('./aspire12');
 const { parseCarveCo } = require('./carveco');
 const { detectToolFormat } = require('./tool-detect');
+const { parseEstlcam } = require('./estlcam');
 
 const PARSERS = {
   '.vtdb': { parse: parseAspire12, name: 'Aspire 12' },
   '.tdb': { parse: parseCarveCo, name: 'CarveCo' },
   '.tool': { detect: detectToolFormat },  // dynamic — uses format detection
+  '.tl': { parse: parseEstlcam, name: 'ESTLcam' },
 };
 
 function getParser(filePath) {

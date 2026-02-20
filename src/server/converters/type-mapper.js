@@ -99,4 +99,44 @@ function aspireTypeName(toolType) {
   return ASPIRE_TYPE_NAMES[toolType] || `Unknown (${toolType})`;
 }
 
-module.exports = { mapAspireType, mapAspire9Type, mapCarvecoType, aspireTypeName, aspire9TypeName, CARVECO_TYPE_MAP };
+// ESTLcam German type string → MillMage type string
+// Returns null for incompatible types
+const ESTLCAM_TYPE_MAP = {
+  Normal: 'End Mill',
+  Radius: 'End Mill',     // Radiused end mill (corner radius from R_Edge)
+  Kugel: 'Ball Mill',     // Ball nose
+  Bohrer: 'Drill',
+  Fase: 'V-Bit',          // Chamfering tool
+  Gravur: 'V-Bit',        // Engraving tool
+  // Incompatible:
+  // Kegel — Tapered/conical
+  // T_Slot — T-slot disc cutter
+  // Gewinde — Threading tool
+  // Profil — Form/profiling tool
+  // Laser — Laser/plasma/waterjet
+};
+
+function mapEstlcamType(typeStr) {
+  return ESTLCAM_TYPE_MAP[typeStr] || null;
+}
+
+// Human-readable display names for ESTLcam types
+const ESTLCAM_TYPE_NAMES = {
+  Normal: 'End Mill',
+  Radius: 'Radiused End Mill',
+  Kugel: 'Ball Nose',
+  Kegel: 'Tapered/Conical',
+  Gravur: 'Engraving',
+  Bohrer: 'Drill',
+  Fase: 'Chamfer',
+  T_Slot: 'T-Slot',
+  Gewinde: 'Threading',
+  Profil: 'Form/Profile',
+  Laser: 'Laser',
+};
+
+function estlcamTypeName(typeStr) {
+  return ESTLCAM_TYPE_NAMES[typeStr] || `Unknown (${typeStr})`;
+}
+
+module.exports = { mapAspireType, mapAspire9Type, mapCarvecoType, mapEstlcamType, estlcamTypeName, aspireTypeName, aspire9TypeName, CARVECO_TYPE_MAP };
