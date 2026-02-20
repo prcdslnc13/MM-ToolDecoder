@@ -1,6 +1,6 @@
 (() => {
-  let currentUploadId = null;
   let currentTools = null;
+  let currentOriginalName = null;
 
   // Initialize all modules
   Upload.init(onUploadSuccess);
@@ -8,8 +8,8 @@
   Download.init();
 
   async function onUploadSuccess(data) {
-    currentUploadId = data.uploadId;
     currentTools = data.tools;
+    currentOriginalName = data.originalName;
 
     // Show panels
     Settings.show();
@@ -17,34 +17,21 @@
     Preview.renderSourceTable(data.tools, data.format);
 
     // Trigger initial conversion
-    await runConversion();
+    runConversion();
   }
 
-  async function onSettingsChange() {
-    if (!currentUploadId) return;
-    await runConversion();
+  function onSettingsChange() {
+    if (!currentTools) return;
+    runConversion();
   }
 
-  async function runConversion() {
+  function runConversion() {
     const defaults = Settings.getValues();
+    const { output, stats } = Converter.convert(currentTools, defaults);
 
-    try {
-      const res = await fetch('/api/convert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId: currentUploadId, defaults }),
-      });
+    Preview.renderConverted(output);
 
-      const data = await res.json();
-      if (!res.ok) {
-        console.error('Conversion error:', data.error);
-        return;
-      }
-
-      Preview.renderConverted(data.output);
-      Download.show(currentUploadId);
-    } catch (err) {
-      console.error('Conversion network error:', err);
-    }
+    const filename = currentOriginalName.replace(/\.[^.]+$/, '') + '.tools';
+    Download.setData(output, filename);
   }
 })();
