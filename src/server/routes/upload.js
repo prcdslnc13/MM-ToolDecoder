@@ -34,7 +34,7 @@ router.post('/', upload.single('file'), (req, res) => {
   }
 
   try {
-    const parser = getParser(req.file.originalname);
+    const parser = getParser(req.file.path);
     if (!parser) {
       return res.status(400).json({ error: 'Unsupported file format' });
     }

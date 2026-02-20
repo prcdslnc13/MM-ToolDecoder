@@ -3,6 +3,7 @@ const assert = require('node:assert');
 const path = require('path');
 const { parseAspire12 } = require('../../src/server/parsers/aspire12');
 const { parseCarveCo } = require('../../src/server/parsers/carveco');
+const { parseAspire9 } = require('../../src/server/parsers/aspire9');
 const { convertToMillMage } = require('../../src/server/converters/to-millmage');
 const fs = require('fs');
 
@@ -95,5 +96,33 @@ describe('Full Pipeline Integration', () => {
     );
     assert.strictEqual(outputToolCount, stats.compatible);
     assert.strictEqual(outputToolCount, tools.length - incompatibleCount);
+  });
+
+  it('should match MillMage output structure for Aspire 9', () => {
+    const tools = parseAspire9(path.join(__dirname, '../../ToolDatabases/aspire9.tool'));
+    const { output } = convertToMillMage(tools);
+
+    for (const [category, toolMap] of Object.entries(output)) {
+      assert.strictEqual(typeof category, 'string');
+      for (const [uuid, tool] of Object.entries(toolMap)) {
+        // UUID format: {xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}
+        assert.match(uuid, /^\{[0-9a-f-]{36}\}$/);
+        assert.strictEqual(tool.Category, category);
+        assert.strictEqual(typeof tool.Diameter, 'number');
+        assert.strictEqual(typeof tool.FeedRate, 'number');
+        assert.strictEqual(typeof tool.FluteCount, 'number');
+        assert.strictEqual(typeof tool.MetricTool, 'boolean');
+        assert.strictEqual(typeof tool.SpindleSpeed, 'number');
+
+        // Type should be one of the MillMage supported types
+        const validTypes = ['End Mill', 'Drill', 'Ball Mill', 'V-Bit', 'Round-over', 'Scribe'];
+        assert.ok(validTypes.includes(tool.Type),
+          `Type "${tool.Type}" not in valid types`);
+
+        // All 21 fields should be present
+        assert.strictEqual(Object.keys(tool).length, 21,
+          `Expected 21 fields, got ${Object.keys(tool).length}`);
+      }
+    }
   });
 });
