@@ -1,0 +1,20 @@
+{
+  "name": "mm-tool-decoder",
+  "version": "1.0.0",
+  "description": "Convert CNC tool databases from Aspire 12 and CarveCo to MillMage .tools format",
+  "main": "src/server/index.js",
+  "scripts": {
+    "start": "node src/server/index.js",
+    "dev": "nodemon src/server/index.js",
+    "test": "node --test test/**/*.test.js test/**/**/*.test.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "express": "^4.21.0",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

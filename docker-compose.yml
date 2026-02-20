@@ -1,0 +1,12 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./test:/app/test
+      - ./ToolDatabases:/app/ToolDatabases
+    environment:
+      - NODE_ENV=development
+    command: npx nodemon src/server/index.js

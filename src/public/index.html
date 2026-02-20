@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MM-ToolDecoder — CNC Tool Database Converter</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>MM-ToolDecoder</h1>
+    <p class="subtitle">Convert Aspire 12 &amp; CarveCo tool databases to MillMage format</p>
+  </header>
+
+  <main>
+    <!-- Upload Area -->
+    <section id="upload-section">
+      <div id="drop-zone" class="drop-zone">
+        <div class="drop-zone-content">
+          <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+            <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" fill="currentColor"/>
+          </svg>
+          <p>Drag &amp; drop your tool database here</p>
+          <p class="drop-hint">Supports .vtdb (Aspire 12) and .tdb (CarveCo)</p>
+          <button id="browse-btn" class="btn btn-primary">Browse Files</button>
+          <input type="file" id="file-input" accept=".vtdb,.tdb" hidden>
+        </div>
+      </div>
+      <div id="upload-status" class="hidden"></div>
+    </section>
+
+    <!-- Settings Panel -->
+    <section id="settings-section" class="hidden">
+      <h2>Default Values</h2>
+      <p class="settings-hint">These values will be applied to fields not present in the source database.</p>
+      <div class="settings-grid">
+        <div class="setting-item">
+          <label for="setting-ramp-angle">Ramp Angle (&deg;)</label>
+          <input type="number" id="setting-ramp-angle" value="22.5" step="0.5" min="0" max="90">
+        </div>
+        <div class="setting-item">
+          <label for="setting-ramp-rate">Ramp Rate (auto if empty)</label>
+          <input type="number" id="setting-ramp-rate" placeholder="Auto (80% feed)" step="0.1" min="0">
+        </div>
+        <div class="setting-item">
+          <label for="setting-tip-length">Tip Length</label>
+          <input type="number" id="setting-tip-length" value="0" step="0.1" min="0">
+        </div>
+        <div class="setting-item">
+          <label for="setting-vendor">Vendor</label>
+          <input type="text" id="setting-vendor" placeholder="(empty)">
+        </div>
+        <div class="setting-item full-width">
+          <label for="setting-spec-url">Tool Spec URL</label>
+          <input type="text" id="setting-spec-url" placeholder="(empty)">
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview Panels -->
+    <section id="preview-section" class="hidden">
+      <div class="preview-container">
+        <!-- Source Preview -->
+        <div class="preview-panel">
+          <h2>Source Tools <span id="source-format" class="badge"></span></h2>
+          <div id="source-stats" class="stats-bar"></div>
+          <div class="table-wrapper">
+            <table id="source-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Source Type</th>
+                  <th>Diameter</th>
+                  <th>Material</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="source-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Converted Preview -->
+        <div class="preview-panel">
+          <h2>MillMage Output</h2>
+          <div id="converted-container">
+            <div id="converted-categories"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download Button -->
+    <section id="download-section" class="hidden">
+      <button id="download-btn" class="btn btn-success btn-large">Download .tools File</button>
+    </section>
+  </main>
+
+  <footer>
+    <p>MM-ToolDecoder &mdash; Convert your CNC tool libraries to MillMage format</p>
+  </footer>
+
+  <script src="js/upload.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/preview.js"></script>
+  <script src="js/download.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
