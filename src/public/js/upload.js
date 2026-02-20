@@ -47,8 +47,8 @@ const Upload = (() => {
 
   async function handleFile(file) {
     const ext = file.name.split('.').pop().toLowerCase();
-    if (!['vtdb', 'tdb', 'tool'].includes(ext)) {
-      showStatus('Unsupported file type. Please upload a .vtdb, .tdb, or .tool file.', 'error');
+    if (!['vtdb', 'tdb', 'tool', 'tl'].includes(ext)) {
+      showStatus('Unsupported file type. Please upload a .vtdb, .tdb, .tool, or .tl file.', 'error');
       return;
     }
 
