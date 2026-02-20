@@ -1,0 +1,11 @@
+{
+  "outputDirectory": "src/public",
+  "functions": {
+    "api/parse.js": {
+      "includeFiles": "src/server/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/parse", "destination": "/api/parse" }
+  ]
+}

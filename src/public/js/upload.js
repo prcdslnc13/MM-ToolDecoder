@@ -58,7 +58,7 @@ const Upload = (() => {
     formData.append('file', file);
 
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      const res = await fetch('/api/parse', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!res.ok) {
