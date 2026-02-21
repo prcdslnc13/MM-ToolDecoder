@@ -138,7 +138,7 @@ describe('MillMage Converter', () => {
   it('should derive RampRate from feed rate when not specified', () => {
     const { output } = convertToMillMage(sampleTools);
     const tool = Object.values(output['Baltic Birch'])[0];
-    // Default: 80% of feed rate
-    assert.strictEqual(tool.RampRate, 25 * 0.8);
+    // Default: 80% of feed rate (after imperial→mm conversion: 25 * 25.4 * 0.8)
+    assert.strictEqual(tool.RampRate, 25 * 25.4 * 0.8);
   });
 });

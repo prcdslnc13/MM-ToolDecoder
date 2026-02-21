@@ -27,26 +27,33 @@ const Converter = (() => {
       }
 
       const uuid = bracedUuid();
-      const rampRate = defaults.RampRate != null ? defaults.RampRate : tool.feedRate * 0.8;
+
+      // MillMage stores all values in mm/mm-per-sec regardless of MetricTool flag.
+      // Imperial tools arrive in inches/in-per-sec and must be converted.
+      const toMm = (v) => tool.metricTool ? v : v * 25.4;
+
+      const feedRateMm = toMm(tool.feedRate || 0);
+      const plungeRateMm = toMm(tool.plungeRate || 0);
+      const rampRate = defaults.RampRate != null ? defaults.RampRate : feedRateMm * 0.8;
 
       output[category][uuid] = {
         Category: category,
-        Diameter: tool.diameter || 0,
-        FeedRate: tool.feedRate || 0,
+        Diameter: toMm(tool.diameter || 0),
+        FeedRate: feedRateMm,
         FluteCount: tool.fluteCount || 2,
         IncludedAngle: tool.includedAngle || 0,
         Index: indexCounters[category],
-        Length: tool.length || 0,
+        Length: toMm(tool.length || 0),
         MetricTool: tool.metricTool || false,
         Name: tool.name || '',
         Notes: tool.notes || '',
-        PassDepth: tool.passDepth || 0,
-        PlungeRate: tool.plungeRate || 0,
-        Radius: tool.tipRadius || 0,
+        PassDepth: toMm(tool.passDepth || 0),
+        PlungeRate: plungeRateMm,
+        Radius: toMm(tool.tipRadius || 0),
         RampAngle: defaults.RampAngle,
         RampRate: rampRate,
         SpindleSpeed: tool.spindleSpeed || 0,
-        StepOver: tool.stepOver || 0,
+        StepOver: toMm(tool.stepOver || 0),
         TipLength: defaults.TipLength,
         ToolSpecURL: defaults.ToolSpecURL,
         Type: tool.type,
