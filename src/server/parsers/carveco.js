@@ -248,7 +248,6 @@ function parseCarveCo(filePath) {
     tool.type = millmageType;
     tool.compatible = compatible;
     tool.sourceType = sourceType;
-    tool.metricTool = isMetric;
     tool.category = materialName;
 
     tools.push(tool);
@@ -328,8 +327,8 @@ function parseToolRecord(buf, offset) {
     includedAngle,
     length: 0,
     notes: description,
-    feedRate,
-    plungeRate,
+    feedRate: feedRate / 60,      // per-min → per-sec
+    plungeRate: plungeRate / 60,  // per-min → per-sec
     metricTool: toolIsMetric,
     passDepth: 0,
     stepOver,

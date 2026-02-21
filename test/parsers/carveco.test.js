@@ -80,6 +80,18 @@ describe('CarveCo Parser', () => {
     }
   });
 
+  it('should parse imperial tools with correct metricTool flag and per-second rates', () => {
+    tools = tools || parseCarveCo(TDB_PATH);
+    const halfInch = tools.find(t => t.name.trim() === 'End Mill 1/2 Inch' && t.category === 'Steel');
+    assert.ok(halfInch, 'Should find "End Mill 1/2 Inch" tool');
+    assert.strictEqual(halfInch.metricTool, false, 'Should be imperial (metricTool: false)');
+    assert.ok(Math.abs(halfInch.diameter - 0.5) < 0.01,
+      `Diameter should be ~0.5 inches, got ${halfInch.diameter}`);
+    // feedRate should be in per-second range (raw value ÷ 60)
+    assert.ok(halfInch.feedRate > 0 && halfInch.feedRate < 50,
+      `FeedRate should be in per-second range, got ${halfInch.feedRate}`);
+  });
+
   it('should extract V-Bit angles from tool names', () => {
     tools = tools || parseCarveCo(TDB_PATH);
     const vbitWithAngle = tools.find(t => t.type === 'V-Bit' && t.name.includes('90 degree'));
