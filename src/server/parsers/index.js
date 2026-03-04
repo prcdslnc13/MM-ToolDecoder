@@ -7,7 +7,8 @@ const { parseEstlcam } = require('./estlcam');
 const PARSERS = {
   '.vtdb': { parse: parseAspire12, name: 'Aspire 12' },
   '.tdb': { parse: parseCarveCo, name: 'CarveCo' },
-  '.tool': { detect: detectToolFormat },  // dynamic — uses format detection
+  '.tool': { detect: detectToolFormat },    // dynamic — uses format detection
+  '.tool_db': { detect: detectToolFormat }, // alternate Aspire 9 extension
   '.tl': { parse: parseEstlcam, name: 'ESTLcam' },
 };
 

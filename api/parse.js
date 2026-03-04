@@ -5,13 +5,21 @@ const fs = require('fs');
 const path = require('path');
 const { getParser, getSupportedExtensions } = require('../src/server/parsers');
 
+// path.extname() only captures the last segment (e.g. ".db" for "file.tool_db").
+// This helper returns the full extension from the first dot in the basename.
+function getFullExtname(filename) {
+  const base = path.basename(filename);
+  const dotIndex = base.indexOf('.');
+  return dotIndex === -1 ? '' : base.slice(dotIndex).toLowerCase();
+}
+
 const app = express();
 
 const upload = multer({
   dest: os.tmpdir(),
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = getFullExtname(file.originalname);
     cb(null, getSupportedExtensions().includes(ext));
   },
 });
@@ -22,7 +30,7 @@ app.post('/api/parse', upload.single('file'), (req, res) => {
   }
 
   // Rename temp file to include original extension (parsers use it for detection)
-  const ext = path.extname(req.file.originalname).toLowerCase();
+  const ext = getFullExtname(req.file.originalname);
   const renamedPath = req.file.path + ext;
 
   try {

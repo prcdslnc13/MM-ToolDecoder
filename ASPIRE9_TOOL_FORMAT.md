@@ -1,10 +1,12 @@
 # Aspire 9 .tool Binary File Format Specification
 
 **Reverse-engineered from:**
-- `/Users/joespaneir/src/MM-ToolDecoder/ToolDatabases/aspire9.tool` (22,422 bytes, default Aspire 9 tool database)
-- `/Users/joespaneir/src/MM-ToolDecoder/ToolDatabases/Aspire_jere tools.tool` (27,345 bytes, user-customized database)
+- `aspire9.tool` (22,422 bytes, default Aspire 9 imperial tool database)
+- `Aspire_jere tools.tool` (27,345 bytes, user-customized imperial database)
+- `Aspire9DefaultMetric.tool` (18,147 bytes, default Aspire 9 metric tool database)
+- `Aspire9DefaultImperial.tool` (default Aspire 9 imperial tool database, alternate filename)
 
-Both files use **the same format version** (file_version=3, record_version=2).
+All files use **the same format version** (file_version=3, record_version=2). Imperial and metric variants differ only in the `zero_byte` field and the unit system used for all numeric measurements.
 
 ---
 
@@ -69,7 +71,7 @@ Each tool record has a fixed layout. The **tool header** is 21 bytes, followed b
 | +8     | float32 LE | radius       | Tool radius = diameter / 2                       |
 | +12    | float32 LE | tip_geometry | Calculated geometric depth (see below)           |
 | +16    | int32 LE | constant_6     | Always `6` (format indicator)                    |
-| +20    | byte     | zero_byte      | Always `0`                                       |
+| +20    | byte     | zero_byte      | `0` = imperial units, `1` = metric units         |
 
 ### Tool Subtype Values
 
@@ -84,15 +86,19 @@ Each tool record has a fixed layout. The **tool header** is 21 bytes, followed b
 | 8     | Form Tool             | `mcFormTool`            | = cutting depth                                  |
 | 9     | Diamond Drag          | `mcDiamondDragTool`     | = radius (= radius / tan(45) for 90-deg)         |
 
+**Note:** Subtypes 11 and 12 are group open/close markers, not tool types. They share the same 21-byte header layout but carry no tool data.
+
 ### Cutting Parameters (5 x float64 = 40 bytes, immediately after header)
 
-| Offset from header start | Type       | Field        | Units (imperial) |
-|--------------------------|------------|--------------|------------------|
-| +21                      | float64 LE | diameter     | inches           |
-| +29                      | float64 LE | stepdown     | inches (pass depth) |
-| +37                      | float64 LE | stepover     | inches           |
-| +45                      | float64 LE | feed_rate    | inches/minute    |
-| +53                      | float64 LE | plunge_rate  | inches/minute    |
+| Offset from header start | Type       | Field        | Units (imperial) | Units (metric)  |
+|--------------------------|------------|--------------|------------------|-----------------|
+| +21                      | float64 LE | diameter     | inches           | mm              |
+| +29                      | float64 LE | stepdown     | inches (pass depth) | mm           |
+| +37                      | float64 LE | stepover     | inches           | mm              |
+| +45                      | float64 LE | feed_rate    | inches/minute    | mm/minute       |
+| +53                      | float64 LE | plunge_rate  | inches/minute    | mm/minute       |
+
+The unit system for all five fields is determined solely by the `zero_byte` in the tool header.
 
 ### Machine Parameters (4 x int32 = 16 bytes)
 
@@ -249,20 +255,36 @@ These appear as:
 
 ## 8. Unit System
 
-Both analyzed files use **imperial units** (inches, inches/minute, RPM).
-The unit system is indicated in the group description UTF-16 string:
-`"Default tool set, defined using imperial units."`
+The format supports both imperial and metric variants. The active unit system is encoded in the `zero_byte` field of each tool header and also described in the root group's UTF-16 description string.
 
-| Measurement      | Unit            |
-|------------------|-----------------|
-| diameter         | inches          |
-| stepdown         | inches          |
-| stepover         | inches          |
-| feed_rate        | inches/minute   |
-| plunge_rate      | inches/minute   |
-| spindle_speed    | RPM             |
-| radius (header)  | inches          |
-| tip_geometry     | inches          |
+| zero_byte | Unit system | Description string example                              |
+|-----------|-------------|--------------------------------------------------------|
+| `0`       | Imperial    | `"Default tool set, defined using imperial units."`    |
+| `1`       | Metric      | `"Default tool set, defined using metric units."`      |
+
+| Measurement      | Imperial unit   | Metric unit |
+|------------------|-----------------|-------------|
+| diameter         | inches          | mm          |
+| stepdown         | inches          | mm          |
+| stepover         | inches          | mm          |
+| feed_rate        | inches/minute   | mm/minute   |
+| plunge_rate      | inches/minute   | mm/minute   |
+| spindle_speed    | RPM             | RPM         |
+| radius (header)  | inches          | mm          |
+| tip_geometry     | inches          | mm          |
+
+**spindle_speed is always RPM regardless of unit system.**
+
+### Confirmed metric values (Aspire9DefaultMetric.tool)
+
+| Name              | diameter (mm) | feed_rate (mm/min) | plunge_rate (mm/min) | stepdown (mm) |
+|-------------------|---------------|--------------------|----------------------|---------------|
+| End Mill (2 mm)   | 2.0           | 60                 | 20                   | 9.0           |
+| End Mill (3 mm)   | 3.0           | 60                 | 20                   | 9.0           |
+| End Mill (6 mm)   | 6.0           | 60                 | 20                   | 3.0           |
+| End Mill (12 mm)  | 12.0          | 40                 | 15                   | 4.0           |
+| Ball Nose (3 mm)  | 3.0           | 20                 | 7                    | 1.5           |
+| Ball Nose (6 mm)  | 6.0           | 40                 | 15                   | 3.0           |
 
 ---
 
@@ -278,7 +300,7 @@ To extract all tools from a .tool file:
 6. **Parse int32 fields:** Read 4 consecutive int32 LE values (num_flutes, spindle_speed, tool_number, name_length).
 7. **Read name:** ASCII string of name_length bytes (including null terminator).
 8. **Find continuation tools:** After each tool's extended data block, look for a 16-byte GUID followed by `00 00 [int32] [XX 80] 02 00 00 00`, then parse from the version field using steps 4-7.
-9. **Alternative approach:** Search for all occurrences of `02 00 00 00` followed by a valid subtype (0,1,2,3,4,6,8,9), a valid f32 radius (0.001-10.0), and int32=6 at offset +16. This finds tool headers directly regardless of framing.
+9. **Alternative approach (used by current parser):** Scan for all positions where bytes 0-3 = `02 00 00 00` (version=2) AND bytes 16-19 = `06 00 00 00` (constant_6=6). At each candidate, check `zero_byte` (offset +20): `0` = imperial, `1` = metric. Apply radius ceiling accordingly (imperial: < 10.0 in; metric: < 500.0 mm). This finds tool headers directly regardless of record framing and handles both unit systems.
 
 ---
 
@@ -307,16 +329,18 @@ To extract all tools from a .tool file:
 
 ## 11. File Format Comparison
 
-| Feature              | aspire9.tool           | Aspire_jere tools.tool |
-|----------------------|------------------------|------------------------|
-| File version         | 3                      | 3                      |
-| Record version       | 2                      | 2                      |
-| Total records        | 30                     | 38                     |
-| Tool count           | 14                     | 30                     |
-| Tool types present   | EM, BN, VBit, Form, Engr, DD, Drill | EM, Drill, RadEM, BN, VBit, Engr |
-| Unit system          | Imperial (inches)      | Imperial (inches)      |
-| Root group name      | "Imperial Tools"       | "small drills"         |
-| Header const v5      | 6                      | 6                      |
-| Header const byte    | 0                      | 0                      |
+| Feature              | aspire9.tool           | Aspire_jere tools.tool | Aspire9DefaultMetric.tool | Aspire9DefaultImperial.tool |
+|----------------------|------------------------|------------------------|---------------------------|-----------------------------|
+| File version         | 3                      | 3                      | 3                         | 3                           |
+| Record version       | 2                      | 2                      | 2                         | 2                           |
+| Tool count           | 14                     | 30                     | ≥ 6 (confirmed)           | same as aspire9.tool        |
+| Tool types present   | EM, BN, VBit, Form, Engr, DD, Drill | EM, Drill, RadEM, BN, VBit, Engr | EM, BN, VBit, Form, DD, Drill | EM, BN, VBit, Form, Engr, DD, Drill |
+| Unit system          | Imperial (inches)      | Imperial (inches)      | **Metric (mm)**           | Imperial (inches)           |
+| Root group name      | "Imperial Tools"       | "small drills"         | **"Metric Tools"**        | "Imperial Tools"            |
+| zero_byte value      | `0`                    | `0`                    | **`1`**                   | `0`                         |
+| Header constant_6    | 6                      | 6                      | 6                         | 6                           |
+| File size (bytes)    | 22,422                 | 27,345                 | 18,147                    | similar to aspire9.tool     |
+
+**Note on `.tool_db` extension:** Aspire 9 also writes files with a `.tool_db` extension. These are byte-for-byte identical in format to `.tool` files. The parser accepts both extensions.
 
 The continuation marker byte (XX in `XX 80`) is file-specific and should NOT be used to determine tool type. Use the `tool_subtype` field (int32 at header offset +4) instead.

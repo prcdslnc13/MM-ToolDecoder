@@ -3,6 +3,14 @@ const multer = require('multer');
 const path = require('path');
 const { getParser, getSupportedExtensions } = require('../parsers');
 
+// path.extname() only captures the last segment (e.g. ".db" for "file.tool_db").
+// This helper returns the full extension from the first dot in the basename.
+function getFullExtname(filename) {
+  const base = path.basename(filename);
+  const dotIndex = base.indexOf('.');
+  return dotIndex === -1 ? '' : base.slice(dotIndex).toLowerCase();
+}
+
 const router = express.Router();
 
 const storage = multer.diskStorage({
@@ -16,7 +24,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = getFullExtname(file.originalname);
     const supported = getSupportedExtensions();
     if (supported.includes(ext)) {
       cb(null, true);
@@ -43,7 +51,7 @@ router.post('/', upload.single('file'), (req, res) => {
 
     // Store parsed data in memory for this session (keyed by upload filename)
     req.app.locals.uploads = req.app.locals.uploads || {};
-    const uploadId = path.basename(req.file.filename, path.extname(req.file.filename));
+    const uploadId = path.basename(req.file.filename, getFullExtname(req.file.filename));
     req.app.locals.uploads[uploadId] = {
       tools,
       format: parser.name,

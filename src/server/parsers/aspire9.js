@@ -45,19 +45,22 @@ function tryParseToolHeader(buf, pos) {
   const subtype = buf.readInt32LE(pos + 4);
   if (!VALID_SUBTYPES.has(subtype)) return null;
 
+  const constant6 = buf.readInt32LE(pos + 16);
+  if (constant6 !== 6) return null;
+
+  // zeroByte == 0 → imperial units, zeroByte == 1 → metric units
+  const zeroByte = buf[pos + 20];
+  if (zeroByte !== 0 && zeroByte !== 1) return null;
+  const isMetric = zeroByte === 1;
+
   const radius = buf.readFloatLE(pos + 8);
-  if (!isFinite(radius) || radius <= 0 || radius >= 10.0) return null;
+  const radiusMax = isMetric ? 500.0 : 10.0;
+  if (!isFinite(radius) || radius <= 0 || radius >= radiusMax) return null;
 
   const tipGeometry = buf.readFloatLE(pos + 12);
   if (!isFinite(tipGeometry) || tipGeometry < 0) return null;
 
-  const constant6 = buf.readInt32LE(pos + 16);
-  if (constant6 !== 6) return null;
-
-  const zeroByte = buf[pos + 20];
-  if (zeroByte !== 0) return null;
-
-  return { version, subtype, radius, tipGeometry };
+  return { version, subtype, radius, tipGeometry, isMetric };
 }
 
 /**
@@ -79,14 +82,14 @@ function parseToolRecord(buf, pos, category) {
   const plungeRate = buf.readDoubleLE(pos + 53);
 
   // Machine parameters (4 x int32 at +61)
-  const numFlutes = buf.readInt32LE(pos + 61);
   const spindleSpeed = buf.readInt32LE(pos + 65);
   const toolNumber = buf.readInt32LE(pos + 69);
   const nameLength = buf.readInt32LE(pos + 73);
 
   // Validation: reject false positives
   if (nameLength < 1 || nameLength > 200) return null;
-  if (!isFinite(diameter) || diameter <= 0 || diameter >= 100) return null;
+  const diamMax = header.isMetric ? 2000 : 100;
+  if (!isFinite(diameter) || diameter <= 0 || diameter >= diamMax) return null;
   if (spindleSpeed <= 0 || spindleSpeed >= 1000000) return null;
   if (!isFinite(feedRate) || feedRate < 0) return null;
 
@@ -97,13 +100,52 @@ function parseToolRecord(buf, pos, category) {
   name = name.replace(/\0+$/, '').trim();
   if (!name) return null;
 
-  // Derive included angle for V-shaped tools
+  // After-name f64: absolute stepover in native units, stored for V-Bit and Roundover subtypes.
+  const afterName = nameStart + nameLength;
+  const stepoverAfterName = (afterName + 8 <= buf.length) ? buf.readDoubleLE(afterName) : 0;
+
+  // Derive included angle for V-shaped tools (V-Bit=3, Tapered=4, Drill=6, Diamond Drag=9)
   let includedAngle = 0;
   if ((header.subtype === 3 || header.subtype === 4 || header.subtype === 6 || header.subtype === 9)
       && header.tipGeometry > 0) {
     const radians = Math.atan(header.radius / header.tipGeometry);
     includedAngle = Math.round(2 * radians * (180 / Math.PI) * 10) / 10;
   }
+
+  // tipRadius is the corner radius, only meaningful for Ball Nose (0) and Radiused End Mill (2).
+  // For all other subtypes header.radius is diameter/2, not a corner radius.
+  const tipRadius = (header.subtype === 0 || header.subtype === 2) ? header.radius : 0;
+
+  // Drills and scribes have no meaningful pass depth (they plunge in one pass or trace).
+  const passDepth = (header.subtype === 6 || header.subtype === 9) ? 0 : stepdown;
+
+  // Stepover rules (native units — imperial in inches, metric in mm):
+  //   Imperial all types:  diameter × 0.4  (so_f64 encodes the same 40% for end mills,
+  //                        but is unreliable for ball nose, V-bit, drill, roundover)
+  //   Metric V-Bit / Roundover (3,4,8): after-name f64 (absolute, already computed by Aspire)
+  //   Metric Drill (6):    diameter × 0.4  (so_f64 is an internal fraction, not usable)
+  //   Metric all others:   so_f64 (absolute mm, stored directly)
+  let stepOver;
+  if (!header.isMetric) {
+    stepOver = diameter * 0.4;
+  } else if (header.subtype === 3 || header.subtype === 4 || header.subtype === 8) {
+    stepOver = stepoverAfterName;
+  } else if (header.subtype === 6) {
+    stepOver = diameter * 0.4;
+  } else {
+    stepOver = stepover; // so_f64: absolute mm for end mill, ball nose, scribe
+  }
+
+  // Feed/plunge rate rules:
+  //   Imperial all types:  stored in in/min → divide by 60 for in/sec
+  //                        (converter's toMm() then multiplies by 25.4)
+  //   Metric Drill (6):    stored in mm/min → divide by 60 for mm/sec
+  //   Metric all others:   stored in mm/sec → use as-is
+  const feedRatePerSec   = (!header.isMetric || header.subtype === 6) ? feedRate  / 60 : feedRate;
+  const plungeRatePerSec = (!header.isMetric || header.subtype === 6) ? plungeRate / 60 : plungeRate;
+
+  // Length is not stored in the Aspire 9 binary. Zero here; the UI default fills the gap.
+  const length = 0;
 
   const type = mapAspire9Type(header.subtype, name);
   const compatible = type !== null;
@@ -114,17 +156,17 @@ function parseToolRecord(buf, pos, category) {
     compatible,
     sourceType: aspire9TypeName(header.subtype),
     diameter,
-    fluteCount: numFlutes || 2,
+    fluteCount: 0,
     includedAngle,
-    length: 0,
+    length,
     notes: '',
-    feedRate: feedRate / 60,     // in/min → in/sec
-    plungeRate: plungeRate / 60, // in/min → in/sec
-    metricTool: false,           // always imperial
-    passDepth: stepdown,
-    stepOver: stepover,
+    feedRate: feedRatePerSec,
+    plungeRate: plungeRatePerSec,
+    metricTool: header.isMetric,
+    passDepth,
+    stepOver,
     spindleSpeed,
-    tipRadius: header.radius,
+    tipRadius,
     category,
   };
 }
@@ -141,8 +183,8 @@ function parseAspire9(filePath) {
   const tools = [];
   const seenPositions = new Set();
 
-  // Scan for tool headers by searching for the 21-byte signature pattern:
-  // int32=2, valid subtype, valid float32 radius, float32 tip_geometry, int32=6, byte=0
+  // Scan for tool headers by searching for the signature pattern:
+  // int32=2, valid subtype, float32 radius, float32 tip_geometry, int32=6, byte=0/1
   for (let i = 0; i <= buf.length - 77; i++) {
     // Quick pre-filter: check version=2 and constant_6=6 (int32 LE)
     if (buf[i] !== 2 || buf[i + 1] !== 0 || buf[i + 2] !== 0 || buf[i + 3] !== 0) continue;

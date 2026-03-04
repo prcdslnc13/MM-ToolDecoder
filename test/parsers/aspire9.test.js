@@ -5,6 +5,8 @@ const { parseAspire9 } = require('../../src/server/parsers/aspire9');
 
 const ASPIRE9_PATH = path.join(__dirname, '../../ToolDatabases/aspire9.tool');
 const JERE_PATH = path.join(__dirname, '../../ToolDatabases/Aspire_jere tools.tool');
+const METRIC_TOOL_PATH   = path.join(__dirname, '../../ToolDatabases/Aspire9DefaultMetric.tool');
+const METRIC_TOOL_DB_PATH = path.join(__dirname, '../../ToolDatabases/Aspire9DefaultMetric.tool_db');
 
 describe('Aspire 9 Parser', () => {
   let tools;
@@ -127,6 +129,80 @@ describe('Aspire 9 Parser', () => {
     for (const t of radiused) {
       assert.strictEqual(t.type, 'End Mill');
       assert.strictEqual(t.compatible, true);
+    }
+  });
+});
+
+describe('Aspire 9 Parser — metric files', () => {
+  let tools;
+
+  it('should parse Aspire9DefaultMetric.tool without errors', () => {
+    tools = parseAspire9(METRIC_TOOL_PATH);
+    assert.ok(Array.isArray(tools));
+    assert.ok(tools.length > 0, 'Should find at least one tool');
+  });
+
+  it('should find at least 6 tools in the metric file', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    assert.ok(tools.length >= 6, `Expected >= 6 tools, got ${tools.length}`);
+  });
+
+  it('should mark all metric tools as metricTool = true', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    for (const t of tools) {
+      assert.strictEqual(t.metricTool, true, `${t.name} should have metricTool=true`);
+    }
+  });
+
+  it('should have mm-scale diameters (between 1 and 100 mm)', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    for (const t of tools) {
+      assert.ok(t.diameter >= 1 && t.diameter <= 100,
+        `${t.name}: diameter ${t.diameter} should be in mm range 1–100`);
+    }
+  });
+
+  it('should correctly parse End Mill (2 mm) feed and plunge rates as mm/sec', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    // File stores rates already in mm/s — no conversion applied
+    const em2 = tools.find(t => t.name === 'End Mill (2 mm)');
+    assert.ok(em2, 'Should find "End Mill (2 mm)"');
+    assert.ok(Math.abs(em2.feedRate  - 60) < 0.001,
+      `feedRate should be 60, got ${em2.feedRate}`);
+    assert.ok(Math.abs(em2.plungeRate - 20) < 0.001,
+      `plungeRate should be 20, got ${em2.plungeRate}`);
+    assert.strictEqual(em2.diameter, 2);
+  });
+
+  it('should correctly parse End Mill (3 mm) rates', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    // File stores rates already in mm/s — no conversion applied
+    const em3 = tools.find(t => t.name === 'End Mill (3 mm)');
+    assert.ok(em3, 'Should find "End Mill (3 mm)"');
+    assert.ok(Math.abs(em3.feedRate  - 60) < 0.001,
+      `feedRate should be 60, got ${em3.feedRate}`);
+    assert.ok(Math.abs(em3.plungeRate - 20) < 0.001,
+      `plungeRate should be 20, got ${em3.plungeRate}`);
+  });
+
+  it('should set category to "Metric Tools"', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    for (const t of tools) {
+      assert.strictEqual(t.category, 'Metric Tools',
+        `${t.name} category should be "Metric Tools", got "${t.category}"`);
+    }
+  });
+
+  it('should produce identical results from .tool_db extension', () => {
+    tools = tools || parseAspire9(METRIC_TOOL_PATH);
+    const toolDbTools = parseAspire9(METRIC_TOOL_DB_PATH);
+    assert.strictEqual(toolDbTools.length, tools.length,
+      `.tool_db should yield same tool count as .tool`);
+    for (let i = 0; i < tools.length; i++) {
+      assert.strictEqual(toolDbTools[i].name, tools[i].name,
+        `Tool ${i} name mismatch between .tool and .tool_db`);
+      assert.strictEqual(toolDbTools[i].feedRate, tools[i].feedRate,
+        `Tool ${i} feedRate mismatch between .tool and .tool_db`);
     }
   });
 });

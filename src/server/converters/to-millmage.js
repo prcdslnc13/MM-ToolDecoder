@@ -4,6 +4,8 @@ const { bracedUuid } = require('../utils/uuid');
 const DEFAULTS = {
   RampAngle: 22.5,
   RampRate: null,   // derived from feed rate if not set
+  FluteCount: 2,
+  Length: 0,
   Vendor: '',
   ToolSpecURL: '',
   TipLength: 0,
@@ -52,10 +54,10 @@ function convertToMillMage(tools, userDefaults = {}) {
       Category: category,
       Diameter: toMm(tool.diameter || 0),
       FeedRate: feedRateMm,
-      FluteCount: tool.fluteCount || 2,
+      FluteCount: tool.fluteCount || defaults.FluteCount,
       IncludedAngle: tool.includedAngle || 0,
       Index: indexCounters[category],
-      Length: toMm(tool.length || 0),
+      Length: tool.length ? toMm(tool.length) : toMm(defaults.Length || 0),
       MetricTool: tool.metricTool || false,
       Name: tool.name || '',
       Notes: tool.notes || '',

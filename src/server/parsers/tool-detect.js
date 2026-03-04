@@ -1,18 +1,33 @@
 const fs = require('fs');
 
+// All known Aspire 9 record type names that may appear as the first record in a .tool file.
+// Files starting with a tool record directly (e.g. a single-tool default file) use a tool
+// type name here instead of the group marker.
+const ASPIRE9_RECORD_TYPES = new Set([
+  'mcToolGroupMarker',
+  'mcEndMillTool',
+  'mcBallNoseTool',
+  'mcRadiusedEndMillTool',
+  'mcVBitTool',
+  'mcEngravingTool',
+  'mcDrillTool',
+  'mcFormTool',
+  'mcDiamondDragTool',
+]);
+
 /**
  * Detect Aspire 9 / Vectric .tool format.
  *
- * Signature (first 31 bytes):
+ * Signature:
  *   Offset 0x00: int32 LE = 3          (file_version)
  *   Offset 0x04: int32 LE = varies     (total record count)
  *   Offset 0x08: FF FF                 (record start marker)
  *   Offset 0x0A: 01 00                 (record type indicator)
- *   Offset 0x0C: int16 LE = 17         (marker name length)
- *   Offset 0x0E: "mcToolGroupMarker"   (17 ASCII bytes)
+ *   Offset 0x0C: int16 LE = name_len
+ *   Offset 0x0E: ASCII record type name (must be a known Aspire 9 record type)
  */
 function detectAspire9(header) {
-  if (header.length < 31) return null;
+  if (header.length < 16) return null;
 
   // file_version = 3
   if (header.readInt32LE(0) !== 3) return null;
@@ -23,12 +38,11 @@ function detectAspire9(header) {
   // 01 00 record type indicator
   if (header[10] !== 0x01 || header[11] !== 0x00) return null;
 
-  // int16 LE = 17 (marker name length)
-  if (header.readInt16LE(12) !== 17) return null;
-
-  // "mcToolGroupMarker" at offset 14
-  const marker = header.slice(14, 14 + 17).toString('ascii');
-  if (marker !== 'mcToolGroupMarker') return null;
+  // Read the record type name and check it against all known Aspire 9 types
+  const nameLen = header.readInt16LE(12);
+  if (nameLen < 1 || 14 + nameLen > header.length) return null;
+  const recordType = header.slice(14, 14 + nameLen).toString('ascii');
+  if (!ASPIRE9_RECORD_TYPES.has(recordType)) return null;
 
   // Lazy-load parser to avoid circular dependency
   const { parseAspire9 } = require('./aspire9');

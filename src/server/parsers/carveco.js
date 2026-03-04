@@ -307,8 +307,7 @@ function parseToolRecord(buf, offset) {
   if (!isFinite(feedRate) || !isFinite(spindleSpeed)) return null;
 
   cursor += 4; // parameter flags (int32)
-  const numFlutes = buf[cursor];
-  cursor += 1;
+  cursor += 1; // numFlutes byte (not used — sourced from user default)
 
   // Extract angle from name for V-Bits
   let includedAngle = 0;
@@ -323,7 +322,7 @@ function parseToolRecord(buf, offset) {
     compatible: false, // filled by caller
     sourceType: '', // filled by caller
     diameter,
-    fluteCount: numFlutes || 2,
+    fluteCount: 0,
     includedAngle,
     length: 0,
     notes: description,
