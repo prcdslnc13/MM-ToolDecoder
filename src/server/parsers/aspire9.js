@@ -105,20 +105,16 @@ function parseToolRecord(buf, pos, category) {
   if (!name) return null;
 
   // Determine stepover: the value at +37 stores absolute stepover for most
-  // metric tools, but for V-bits it stores a small ratio and the absolute
-  // value is in a float64 immediately after the name. For imperial tools,
-  // the Aspire default export uses 40% of diameter for all tool types.
-  // For drills, the binary stores a tiny value unrelated to the actual
-  // stepover; 40% of diameter matches the expected output.
+  // tool types. For V-bits it stores a small ratio and the absolute value
+  // is in a float64 immediately after the name. Drills do not use stepover.
   let stepover;
-  if (!header.isMetric) {
-    stepover = diameter * 0.4;
+  if (header.subtype === 6) {
+    // Drills have no stepover
+    stepover = 0;
   } else if (header.subtype === 3) {
     // V-Bit: read absolute stepover from post-name float64
     const nameEnd = nameStart + nameLength;
     stepover = (nameEnd + 8 <= buf.length) ? buf.readDoubleLE(nameEnd) : rawStepover;
-  } else if (header.subtype === 6) {
-    stepover = diameter * 0.4;
   } else {
     stepover = rawStepover;
   }
