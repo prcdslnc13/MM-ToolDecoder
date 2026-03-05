@@ -7,6 +7,8 @@ const DEFAULTS = {
   Vendor: '',
   ToolSpecURL: '',
   TipLength: 0,
+  FluteCount: 2,
+  FluteLength: 0,
 };
 
 /**
@@ -52,10 +54,10 @@ function convertToMillMage(tools, userDefaults = {}) {
       Category: category,
       Diameter: toMm(tool.diameter || 0),
       FeedRate: feedRateMm,
-      FluteCount: tool.fluteCount || 2,
+      FluteCount: tool.fluteCount || defaults.FluteCount,
       IncludedAngle: tool.includedAngle || 0,
       Index: indexCounters[category],
-      Length: toMm(tool.length || 0),
+      Length: toMm(tool.length || 0) || defaults.FluteLength,
       MetricTool: tool.metricTool || false,
       Name: tool.name || '',
       Notes: tool.notes || '',

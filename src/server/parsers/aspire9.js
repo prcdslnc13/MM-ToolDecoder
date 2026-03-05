@@ -34,6 +34,8 @@ function extractRootGroupName(buf) {
 /**
  * Check if a position in the buffer is a valid tool header.
  * Returns the parsed header or null if invalid.
+ *
+ * Byte +20 is a unit flag: 0 = imperial, 1 = metric.
  */
 function tryParseToolHeader(buf, pos) {
   // Need at least 77 bytes for header + params + name_length
@@ -45,19 +47,23 @@ function tryParseToolHeader(buf, pos) {
   const subtype = buf.readInt32LE(pos + 4);
   if (!VALID_SUBTYPES.has(subtype)) return null;
 
+  const constant6 = buf.readInt32LE(pos + 16);
+  if (constant6 !== 6) return null;
+
+  // Unit flag: 0 = imperial, 1 = metric
+  const unitFlag = buf[pos + 20];
+  if (unitFlag !== 0 && unitFlag !== 1) return null;
+  const isMetric = unitFlag === 1;
+
   const radius = buf.readFloatLE(pos + 8);
-  if (!isFinite(radius) || radius <= 0 || radius >= 10.0) return null;
+  // Metric radii are in mm (can be large), imperial in inches
+  const maxRadius = isMetric ? 250.0 : 10.0;
+  if (!isFinite(radius) || radius <= 0 || radius >= maxRadius) return null;
 
   const tipGeometry = buf.readFloatLE(pos + 12);
   if (!isFinite(tipGeometry) || tipGeometry < 0) return null;
 
-  const constant6 = buf.readInt32LE(pos + 16);
-  if (constant6 !== 6) return null;
-
-  const zeroByte = buf[pos + 20];
-  if (zeroByte !== 0) return null;
-
-  return { version, subtype, radius, tipGeometry };
+  return { version, subtype, radius, tipGeometry, isMetric };
 }
 
 /**
@@ -74,7 +80,7 @@ function parseToolRecord(buf, pos, category) {
   // Cutting parameters (5 x float64 at +21)
   const diameter = buf.readDoubleLE(pos + 21);
   const stepdown = buf.readDoubleLE(pos + 29);
-  const stepover = buf.readDoubleLE(pos + 37);
+  const rawStepover = buf.readDoubleLE(pos + 37);
   const feedRate = buf.readDoubleLE(pos + 45);
   const plungeRate = buf.readDoubleLE(pos + 53);
 
@@ -86,7 +92,8 @@ function parseToolRecord(buf, pos, category) {
 
   // Validation: reject false positives
   if (nameLength < 1 || nameLength > 200) return null;
-  if (!isFinite(diameter) || diameter <= 0 || diameter >= 100) return null;
+  const maxDiameter = header.isMetric ? 500 : 100;
+  if (!isFinite(diameter) || diameter <= 0 || diameter >= maxDiameter) return null;
   if (spindleSpeed <= 0 || spindleSpeed >= 1000000) return null;
   if (!isFinite(feedRate) || feedRate < 0) return null;
 
@@ -97,6 +104,21 @@ function parseToolRecord(buf, pos, category) {
   name = name.replace(/\0+$/, '').trim();
   if (!name) return null;
 
+  // Determine stepover: the value at +37 stores absolute stepover for most
+  // tool types. For V-bits it stores a small ratio and the absolute value
+  // is in a float64 immediately after the name. Drills do not use stepover.
+  let stepover;
+  if (header.subtype === 6) {
+    // Drills have no stepover
+    stepover = 0;
+  } else if (header.subtype === 3) {
+    // V-Bit: read absolute stepover from post-name float64
+    const nameEnd = nameStart + nameLength;
+    stepover = (nameEnd + 8 <= buf.length) ? buf.readDoubleLE(nameEnd) : rawStepover;
+  } else {
+    stepover = rawStepover;
+  }
+
   // Derive included angle for V-shaped tools
   let includedAngle = 0;
   if ((header.subtype === 3 || header.subtype === 4 || header.subtype === 6 || header.subtype === 9)
@@ -105,8 +127,24 @@ function parseToolRecord(buf, pos, category) {
     includedAngle = Math.round(2 * radians * (180 / Math.PI) * 10) / 10;
   }
 
+  // Map tipGeometry based on subtype
+  let tipRadius = 0;
+  let length = 0;
+  if (header.subtype === 2 || header.subtype === 8) {
+    // Radiused End Mill: corner radius; Form/Roundover: roundover radius
+    tipRadius = header.tipGeometry;
+  } else if (header.subtype === 3 || header.subtype === 4 || header.subtype === 6 || header.subtype === 9) {
+    // V-Bit, Engraving, Drill, Diamond Drag: cutting depth / point height
+    length = header.tipGeometry;
+  }
+
   const type = mapAspire9Type(header.subtype, name);
   const compatible = type !== null;
+
+  // Metric files: feedRate/plungeRate are already mm/s
+  // Imperial files: feedRate/plungeRate are in/min → convert to in/s
+  const fr = header.isMetric ? feedRate : feedRate / 60;
+  const pr = header.isMetric ? plungeRate : plungeRate / 60;
 
   return {
     name,
@@ -114,17 +152,17 @@ function parseToolRecord(buf, pos, category) {
     compatible,
     sourceType: aspire9TypeName(header.subtype),
     diameter,
-    fluteCount: numFlutes || 2,
+    fluteCount: 0,
     includedAngle,
-    length: 0,
+    length,
     notes: '',
-    feedRate: feedRate / 60,     // in/min → in/sec
-    plungeRate: plungeRate / 60, // in/min → in/sec
-    metricTool: false,           // always imperial
+    feedRate: fr,
+    plungeRate: pr,
+    metricTool: header.isMetric,
     passDepth: stepdown,
     stepOver: stepover,
     spindleSpeed,
-    tipRadius: header.radius,
+    tipRadius,
     category,
   };
 }
@@ -142,7 +180,7 @@ function parseAspire9(filePath) {
   const seenPositions = new Set();
 
   // Scan for tool headers by searching for the 21-byte signature pattern:
-  // int32=2, valid subtype, valid float32 radius, float32 tip_geometry, int32=6, byte=0
+  // int32=2, valid subtype, float32 radius, float32 tip_geometry, int32=6, unit_flag(0|1)
   for (let i = 0; i <= buf.length - 77; i++) {
     // Quick pre-filter: check version=2 and constant_6=6 (int32 LE)
     if (buf[i] !== 2 || buf[i + 1] !== 0 || buf[i + 2] !== 0 || buf[i + 3] !== 0) continue;
