@@ -16,7 +16,8 @@ const upload = multer({
   },
 });
 
-app.post('/api/parse', upload.single('file'), (req, res) => {
+// Handle both /api/parse and /api/upload (client uses /api/upload)
+app.post(['/api/parse', '/api/upload'], upload.single('file'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded or unsupported file type' });
   }
