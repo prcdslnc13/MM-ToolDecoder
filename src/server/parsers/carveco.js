@@ -323,7 +323,7 @@ function parseToolRecord(buf, offset) {
     compatible: false, // filled by caller
     sourceType: '', // filled by caller
     diameter,
-    fluteCount: numFlutes || 2,
+    fluteCount: 0,
     includedAngle,
     length: 0,
     notes: description,
