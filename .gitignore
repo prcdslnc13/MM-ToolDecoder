@@ -2,3 +2,22 @@ node_modules/
 uploads/
 .DS_Store
 *.log
+
+# Claude Code
+.claude/
+
+# SQLite temp files
+*.vtdb-shm
+*.vtdb-wal
+
+# Docker exports
+*.tar
+
+# Scratch/debug files
+tmp_*.js
+diff-check.js
+src/diff-check.js
+ToolDatabases/probe*.js
+ToolDatabases/p[0-9]*.txt
+ToolDatabases/probe*-out.txt
+ToolDatabases/order-check.txt
