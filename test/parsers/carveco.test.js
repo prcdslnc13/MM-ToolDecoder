@@ -124,6 +124,21 @@ describe('CarveCo Parser', () => {
       `m/min feedRate should be ~33.33 mm/sec, got ${conical08.feedRate}`);
   });
 
+  it('should read step down (passDepth) from binary', () => {
+    tools = tools || parseCarveCo(TDB_PATH);
+    // Conical Flat 0.8 - 30deg in Aluminum: step down = 1.0 mm
+    const conical08 = tools.find(t => t.name.includes('Conical Flat 0.8 - 30deg') && t.category === 'Aluminum');
+    assert.ok(conical08, 'Should find Conical Flat 0.8 - 30deg');
+    assert.ok(Math.abs(conical08.passDepth - 1.0) < 0.01,
+      `passDepth should be ~1.0, got ${conical08.passDepth}`);
+
+    // End Mill 1/8 Inch in Aluminum: step down = 0.1 inches
+    const em18 = tools.find(t => t.name.trim() === 'End Mill 1/8 Inch' && t.category === 'Aluminum');
+    assert.ok(em18, 'Should find End Mill 1/8 Inch');
+    assert.ok(Math.abs(em18.passDepth - 0.1) < 0.01,
+      `passDepth should be ~0.1, got ${em18.passDepth}`);
+  });
+
   it('should extract V-Bit angles from tool names', () => {
     tools = tools || parseCarveCo(TDB_PATH);
     const vbitWithAngle = tools.find(t => t.type === 'V-Bit' && t.name.includes('90 degree'));

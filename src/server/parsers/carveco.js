@@ -325,8 +325,9 @@ function parseToolRecord(buf, offset) {
   // Validate diameter
   if (diameter <= 0 || diameter > 500 || !isFinite(diameter)) return null;
 
-  // Skip shank diameter (float64 LE)
+  // Read step down / pass depth (float64 LE)
   if (cursor + 8 > buf.length) return null;
+  const stepDown = buf.readDoubleLE(cursor);
   cursor += 8;
 
   // Read description string
@@ -377,7 +378,7 @@ function parseToolRecord(buf, offset) {
     feedRate: feedRateConverted,
     plungeRate: plungeRateConverted,
     metricTool: toolIsMetric,
-    passDepth: 0,
+    passDepth: isFinite(stepDown) && stepDown >= 0 ? stepDown : 0,
     stepOver,
     spindleSpeed,
     tipRadius: 0,
