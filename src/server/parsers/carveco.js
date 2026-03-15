@@ -46,6 +46,11 @@ const NAME_TYPE_PATTERNS = [
   { pattern: /\bConical\s*Flat\b/i, marker: 'tpmDB_FlatConicalTool' },
   { pattern: /\bConical\s*Rad\b/i, marker: 'tpmDB_RadiusedConicalTool' },
   { pattern: /\bConical\b/i, marker: 'tpmDB_FlatConicalTool' },
+  { pattern: /\bSpiral\s*Plunge\b/i, marker: 'tpmDB_SlotDrillTool' },
+  { pattern: /\bCompression\s*Spiral\b/i, marker: 'tpmDB_SlotDrillTool' },
+  { pattern: /\bSpoilboard\b/i, marker: 'tpmDB_SlotDrillTool' },
+  { pattern: /\bSurfacing\b/i, marker: 'tpmDB_SlotDrillTool' },
+  { pattern: /\bFlycutt/i, marker: 'tpmDB_SlotDrillTool' },
   { pattern: /\bDrill\b/i, marker: 'tpmDB_SlotDrillTool' }, // CarveCo drills treated as end mills
   { pattern: /\bBurr\b/i, marker: 'tpmDB_SlotDrillTool' },
   { pattern: /\bDished\s*Panel|Panel\s*Raiser\b/i, marker: 'tpmDB_RaisedPanelCoveTool' },
@@ -167,17 +172,12 @@ function parseCarveCo(filePath) {
   // Section ends: 01 0C 80
   const sectionEnds = findAll(buf, Buffer.from([0x01, 0x0C, 0x80]));
 
-  // Group ends
-  const groupEnds = markerPositions
-    .filter(mp => mp.marker === MARKERS.GROUP_END)
-    .map(mp => mp.offset);
-
-  // Build boundaries list
+  // Build boundaries list — tool type markers and section ends only.
+  // Group start/end markers are NOT boundaries because tool type sections
+  // span across subgroups (e.g. SlotDrillTool covers multiple shank/material subgroups).
   const boundaries = [
     ...toolMarkerPositions.map(mp => mp.offset),
     ...sectionEnds,
-    ...groupEnds,
-    ...markerPositions.filter(mp => mp.marker === MARKERS.GROUP_START).map(mp => mp.offset),
   ].sort((a, b) => a - b);
 
   for (const mp of toolMarkerPositions) {
@@ -243,6 +243,21 @@ function parseCarveCo(filePath) {
     const sourceType = typeMarker
       ? typeMarker.replace('tpmDB_', '').replace('Tool', '')
       : 'Unknown';
+
+    // Radiused Engraving / Tapered Ball Nose: read half angle and tip radius
+    // from extended data block after the standard fields.
+    if (typeMarker === 'tpmDB_RadiusedConicalTool' && tool._cursorEnd) {
+      const extBase = tool._cursorEnd;
+      if (extBase + 86 + 8 <= buf.length) {
+        const halfAngle = buf.readDoubleLE(extBase + 77);
+        const tipRadius = buf.readDoubleLE(extBase + 86);
+        if (halfAngle > 0 && halfAngle < 180 && tipRadius >= 0) {
+          tool.includedAngle = Math.round(halfAngle * 2 * 10) / 10;
+          tool.tipRadius = tipRadius;
+        }
+      }
+    }
+    delete tool._cursorEnd;
 
     // Enrich the tool with context
     tool.type = millmageType;
@@ -335,6 +350,7 @@ function parseToolRecord(buf, offset) {
     spindleSpeed,
     tipRadius: 0,
     category: 'Default', // filled by caller
+    _cursorEnd: cursor, // end of standard fields, used for extended data reads
   };
 }
 

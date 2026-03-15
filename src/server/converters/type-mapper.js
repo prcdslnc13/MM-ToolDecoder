@@ -4,10 +4,10 @@ const ASPIRE_TYPE_MAP = {
   0: 'Ball Mill',      // Ball Nose (Aspire uses 0 for ball nose based on actual DB data)
   1: 'End Mill',       // End Mill
   3: 'V-Bit',          // V-Bit
+  5: 'V-Bit',          // Tapered Ball Nose → V-Bit (side angle doubled)
   6: 'Drill',          // Drill
   9: 'Scribe',         // Diamond Drag → Scribe
   // 4: null — Engraving / Tapered (incompatible)
-  // 5: null — Tapered Ball Nose (incompatible)
   // 8: special — Form Tool (roundover only, checked separately)
 };
 
@@ -18,6 +18,7 @@ const ASPIRE9_TYPE_MAP = {
   1: 'End Mill',       // End Mill
   2: 'End Mill',       // Radiused End Mill → End Mill
   3: 'V-Bit',          // V-Bit
+  5: 'V-Bit',          // Tapered Ball Nose → V-Bit (side angle doubled)
   6: 'Drill',          // Drill
   9: 'Scribe',         // Diamond Drag → Scribe
   // 4: null — Engraving (incompatible)
@@ -30,10 +31,10 @@ const CARVECO_TYPE_MAP = {
   'tpmDB_SlotDrillTool': 'End Mill',
   'tpmDB_BallnoseTool': 'Ball Mill',
   'tpmDB_VBitTool': 'V-Bit',
+  'tpmDB_RadiusedConicalTool': 'V-Bit', // Radiused Engraving / Tapered Ball Nose → V-Bit (half angle doubled)
   'tpmDB_RoundoverTool': 'Round-over',
   // Incompatible types:
   // 'tpmDB_FlatConicalTool': null,
-  // 'tpmDB_RadiusedConicalTool': null,
   // 'tpmDB_OgeeTool': null,
   // 'tpmDB_RomanOgeeTool': null,
   // 'tpmDB_RaisedPanelCoveTool': null,
@@ -74,6 +75,7 @@ const ASPIRE9_TYPE_NAMES = {
   2: 'Radiused End Mill',
   3: 'V-Bit',
   4: 'Engraving',
+  5: 'Tapered Ball Nose',
   6: 'Drill',
   8: 'Form Tool',
   9: 'Diamond Drag',

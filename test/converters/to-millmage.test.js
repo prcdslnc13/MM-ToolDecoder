@@ -46,7 +46,7 @@ describe('MillMage Converter', () => {
       name: 'Incompatible Tool',
       type: null,
       compatible: false,
-      sourceType: 'Tapered Ball Nose',
+      sourceType: 'Engraving/Tapered',
       diameter: 6.35,
       fluteCount: 2,
       includedAngle: 0,

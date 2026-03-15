@@ -7,6 +7,7 @@ const ASPIRE9_PATH = path.join(__dirname, '../../ToolDatabases/aspire9.tool');
 const JERE_PATH = path.join(__dirname, '../../ToolDatabases/Aspire_jere tools.tool');
 const METRIC_PATH = path.join(__dirname, '../../ToolDatabases/Clean Aspire Libraries/Aspire9DefaultMetric.tool');
 const IMPERIAL_PATH = path.join(__dirname, '../../ToolDatabases/Clean Aspire Libraries/Aspire9DefaultImperial1.tool');
+const TAPERED_PATH = path.join(__dirname, '../../ToolDatabases/TaperedBallNose.tool');
 
 describe('Aspire 9 Parser', () => {
   let tools;
@@ -219,6 +220,53 @@ describe('Aspire 9 Parser', () => {
     imperialTools = parseAspire9(IMPERIAL_PATH);
     assert.ok(Array.isArray(imperialTools));
     assert.ok(imperialTools.length > 0, 'Should find imperial tools');
+  });
+
+  // --- Tapered Ball Nose tests ---
+
+  it('should parse TaperedBallNose.tool and map to V-Bit', () => {
+    const tbnTools = parseAspire9(TAPERED_PATH);
+    assert.ok(tbnTools.length === 4, `Expected 4 tapered ball nose tools, got ${tbnTools.length}`);
+    for (const t of tbnTools) {
+      assert.strictEqual(t.type, 'V-Bit', `${t.name} should map to V-Bit`);
+      assert.strictEqual(t.compatible, true);
+      assert.strictEqual(t.sourceType, 'Tapered Ball Nose');
+    }
+  });
+
+  it('should read correct included angle (doubled side angle) for tapered ball nose', () => {
+    const tbnTools = parseAspire9(TAPERED_PATH);
+    // 6 Deg side angle → 12 deg included, 15→30, 45→90, 4→8
+    const tool6 = tbnTools.find(t => t.name.includes('6 Deg'));
+    assert.ok(tool6, 'Should find 6 Deg tool');
+    assert.ok(Math.abs(tool6.includedAngle - 12) < 0.5,
+      `6 Deg tool angle should be ~12, got ${tool6.includedAngle}`);
+
+    const tool15 = tbnTools.find(t => t.name.includes('15 Deg'));
+    assert.ok(tool15, 'Should find 15 Deg tool');
+    assert.ok(Math.abs(tool15.includedAngle - 30) < 0.5,
+      `15 Deg tool angle should be ~30, got ${tool15.includedAngle}`);
+
+    const tool45 = tbnTools.find(t => t.name.includes('45 Deg'));
+    assert.ok(tool45, 'Should find 45 Deg tool');
+    assert.ok(Math.abs(tool45.includedAngle - 90) < 0.5,
+      `45 Deg tool angle should be ~90, got ${tool45.includedAngle}`);
+
+    const tool4 = tbnTools.find(t => t.name.includes('4 Deg'));
+    assert.ok(tool4, 'Should find 4 Deg tool');
+    assert.ok(Math.abs(tool4.includedAngle - 8) < 0.5,
+      `4 Deg tool angle should be ~8, got ${tool4.includedAngle}`);
+  });
+
+  it('should read correct tip radius for tapered ball nose', () => {
+    const tbnTools = parseAspire9(TAPERED_PATH);
+    const tool6 = tbnTools.find(t => t.name.includes('6 Deg'));
+    assert.ok(Math.abs(tool6.tipRadius - 0.05) < 0.001,
+      `6 Deg tipRadius should be ~0.05, got ${tool6.tipRadius}`);
+
+    const tool4 = tbnTools.find(t => t.name.includes('4 Deg'));
+    assert.ok(Math.abs(tool4.tipRadius - 0.03) < 0.001,
+      `4 Deg tipRadius should be ~0.03, got ${tool4.tipRadius}`);
   });
 
   it('should compute included angle for imperial V-bits and drill', () => {

@@ -155,6 +155,11 @@ function parseAspire12(filePath) {
 
       const name = resolveNameFormat(row.name_format, row);
 
+      // Tapered Ball Nose (type 5): DB stores side angle, V-Bit needs included angle (2×)
+      const includedAngle = row.tool_type === 5
+        ? (row.included_angle || 0) * 2
+        : (row.included_angle || 0);
+
       return {
         name,
         type: millmageType,
@@ -162,7 +167,7 @@ function parseAspire12(filePath) {
         sourceType: aspireTypeName(row.tool_type),
         diameter,
         fluteCount: row.num_flutes || 2,
-        includedAngle: row.included_angle || 0,
+        includedAngle,
         length,
         notes: row.notes || '',
         feedRate,
