@@ -244,6 +244,21 @@ function parseCarveCo(filePath) {
       ? typeMarker.replace('tpmDB_', '').replace('Tool', '')
       : 'Unknown';
 
+    // Radiused Engraving / Tapered Ball Nose: read half angle and tip radius
+    // from extended data block after the standard fields.
+    if (typeMarker === 'tpmDB_RadiusedConicalTool' && tool._cursorEnd) {
+      const extBase = tool._cursorEnd;
+      if (extBase + 86 + 8 <= buf.length) {
+        const halfAngle = buf.readDoubleLE(extBase + 77);
+        const tipRadius = buf.readDoubleLE(extBase + 86);
+        if (halfAngle > 0 && halfAngle < 180 && tipRadius >= 0) {
+          tool.includedAngle = Math.round(halfAngle * 2 * 10) / 10;
+          tool.tipRadius = tipRadius;
+        }
+      }
+    }
+    delete tool._cursorEnd;
+
     // Enrich the tool with context
     tool.type = millmageType;
     tool.compatible = compatible;
@@ -335,6 +350,7 @@ function parseToolRecord(buf, offset) {
     spindleSpeed,
     tipRadius: 0,
     category: 'Default', // filled by caller
+    _cursorEnd: cursor, // end of standard fields, used for extended data reads
   };
 }
 

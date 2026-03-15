@@ -31,10 +31,10 @@ const CARVECO_TYPE_MAP = {
   'tpmDB_SlotDrillTool': 'End Mill',
   'tpmDB_BallnoseTool': 'Ball Mill',
   'tpmDB_VBitTool': 'V-Bit',
+  'tpmDB_RadiusedConicalTool': 'V-Bit', // Radiused Engraving / Tapered Ball Nose → V-Bit (half angle doubled)
   'tpmDB_RoundoverTool': 'Round-over',
   // Incompatible types:
   // 'tpmDB_FlatConicalTool': null,
-  // 'tpmDB_RadiusedConicalTool': null,
   // 'tpmDB_OgeeTool': null,
   // 'tpmDB_RomanOgeeTool': null,
   // 'tpmDB_RaisedPanelCoveTool': null,
