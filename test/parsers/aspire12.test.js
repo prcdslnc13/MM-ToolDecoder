@@ -74,8 +74,21 @@ describe('Aspire 12 Parser', () => {
     tools = tools || parseAspire12(VTDB_PATH);
     const incompatible = tools.filter(t => !t.compatible);
     assert.ok(incompatible.length > 0, 'Should have some incompatible tools');
-    // Tapered Ball Nose, Engraving, Ogee form tools should be incompatible
-    assert.ok(incompatible.some(t => t.sourceType === 'Tapered Ball Nose'));
+    // Engraving, Ogee form tools should be incompatible
+    assert.ok(incompatible.some(t => t.sourceType === 'Engraving/Tapered') ||
+              incompatible.some(t => t.sourceType === 'Form Tool'));
+  });
+
+  it('should map Tapered Ball Nose to V-Bit with doubled side angle', () => {
+    tools = tools || parseAspire12(VTDB_PATH);
+    const tbn = tools.filter(t => t.sourceType === 'Tapered Ball Nose');
+    if (tbn.length > 0) {
+      for (const t of tbn) {
+        assert.strictEqual(t.type, 'V-Bit', 'Tapered Ball Nose should map to V-Bit');
+        assert.strictEqual(t.compatible, true);
+        assert.ok(t.includedAngle > 0, `Included angle should be > 0, got ${t.includedAngle}`);
+      }
+    }
   });
 
   it('should resolve name format templates', () => {

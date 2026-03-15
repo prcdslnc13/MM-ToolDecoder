@@ -2,7 +2,7 @@ const fs = require('fs');
 const { mapAspire9Type, aspire9TypeName } = require('../converters/type-mapper');
 
 // Valid tool subtypes in Aspire 9
-const VALID_SUBTYPES = new Set([0, 1, 2, 3, 4, 6, 8, 9]);
+const VALID_SUBTYPES = new Set([0, 1, 2, 3, 4, 5, 6, 8, 9]);
 
 /**
  * Extract the root group name from the file header.
@@ -120,6 +120,8 @@ function parseToolRecord(buf, pos, category) {
   }
 
   // Derive included angle for V-shaped tools
+  // Subtype 5 (Tapered Ball Nose) is handled in a post-scan pass because
+  // the angle and tip radius are stored in the extended data block, not the header.
   let includedAngle = 0;
   if ((header.subtype === 3 || header.subtype === 4 || header.subtype === 6 || header.subtype === 9)
       && header.tipGeometry > 0) {
@@ -137,6 +139,7 @@ function parseToolRecord(buf, pos, category) {
     // V-Bit, Engraving, Drill, Diamond Drag: cutting depth / point height
     length = header.tipGeometry;
   }
+  // Subtype 5: tipRadius and includedAngle come from extended data (post-scan)
 
   const type = mapAspire9Type(header.subtype, name);
   const compatible = type !== null;
@@ -164,6 +167,8 @@ function parseToolRecord(buf, pos, category) {
     spindleSpeed,
     tipRadius,
     category,
+    _headerPos: pos,
+    _subtype: header.subtype,
   };
 }
 
@@ -178,13 +183,17 @@ function parseAspire9(filePath) {
   const category = extractRootGroupName(buf);
   const tools = [];
   const seenPositions = new Set();
+  const allRecordPositions = []; // all record headers (tools + groups)
 
-  // Scan for tool headers by searching for the 21-byte signature pattern:
-  // int32=2, valid subtype, float32 radius, float32 tip_geometry, int32=6, unit_flag(0|1)
+  // Scan for record headers by searching for the signature pattern:
+  // int32=2, ..., int32=6 at +16
+  // This matches both tool records and group records (param 11/12).
   for (let i = 0; i <= buf.length - 77; i++) {
     // Quick pre-filter: check version=2 and constant_6=6 (int32 LE)
     if (buf[i] !== 2 || buf[i + 1] !== 0 || buf[i + 2] !== 0 || buf[i + 3] !== 0) continue;
     if (buf.readInt32LE(i + 16) !== 6) continue;
+
+    allRecordPositions.push(i);
 
     const tool = parseToolRecord(buf, i, category);
     if (!tool) continue;
@@ -195,6 +204,29 @@ function parseAspire9(filePath) {
     seenPositions.add(namePos);
 
     tools.push(tool);
+  }
+
+  // Post-scan: read includedAngle and tipRadius for Tapered Ball Nose (subtype 5)
+  // from the extended data block. These values are stored at fixed offsets before
+  // the next record header: includedAngle (float64) at -26, tipRadius (float32) at -18.
+  for (const tool of tools) {
+    if (tool._subtype === 5) {
+      const idx = allRecordPositions.indexOf(tool._headerPos);
+      if (idx >= 0 && idx + 1 < allRecordPositions.length) {
+        const nextPos = allRecordPositions[idx + 1];
+        if (nextPos - 26 >= 0 && nextPos - 18 + 4 <= buf.length) {
+          const angle = buf.readDoubleLE(nextPos - 26);
+          const tipR = buf.readFloatLE(nextPos - 18);
+          // Validate: angle should be a reasonable included angle, tipR positive and < radius
+          if (angle > 0 && angle < 360 && tipR >= 0 && tipR < tool.diameter / 2) {
+            tool.includedAngle = Math.round(angle * 10) / 10;
+            tool.tipRadius = tipR;
+          }
+        }
+      }
+    }
+    delete tool._headerPos;
+    delete tool._subtype;
   }
 
   return tools;
