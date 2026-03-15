@@ -5,25 +5,28 @@
 }
 
 :root {
-  --bg: #1a1a2e;
-  --surface: #16213e;
-  --surface-2: #0f3460;
-  --accent: #e94560;
-  --accent-hover: #ff6b81;
+  --bg: #110e14;
+  --surface: #1c1622;
+  --surface-2: #2a1f35;
+  --accent: #8f11c3;
+  --accent-hover: #a83fd4;
+  --accent-subtle: rgba(143, 17, 195, 0.12);
+  --purple-alt: #6d2c8b;
+  --purple-deep: #5f3187;
   --success: #2ecc71;
   --success-hover: #27ae60;
   --warning: #f39c12;
   --danger: #e74c3c;
   --danger-bg: rgba(231, 76, 60, 0.15);
-  --text: #eee;
-  --text-muted: #8899aa;
-  --border: #2a3a5e;
+  --text: #ede8f0;
+  --text-muted: #8a7f96;
+  --border: #352a42;
   --radius: 8px;
-  --shadow: 0 2px 12px rgba(0,0,0,0.3);
+  --shadow: 0 2px 16px rgba(95, 49, 135, 0.15);
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+  font-family: 'Avenir', 'Avenir Next', 'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -36,15 +39,31 @@ header {
   padding: 2rem 1rem 1rem;
 }
 
+.header-logo {
+  height: 44px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 header h1 {
-  font-size: 2rem;
+  font-size: 1.6rem;
+  color: var(--text);
+  letter-spacing: 2px;
+  font-weight: 300;
+  margin-top: 0.5rem;
+}
+
+header h1 span {
   color: var(--accent);
-  letter-spacing: 1px;
+  font-weight: 600;
 }
 
 .subtitle {
   color: var(--text-muted);
   margin-top: 0.5rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.5px;
 }
 
 main {
@@ -105,7 +124,7 @@ footer {
 .drop-zone:hover,
 .drop-zone.drag-over {
   border-color: var(--accent);
-  background: rgba(233, 69, 96, 0.05);
+  background: var(--accent-subtle);
 }
 .drop-zone-content { pointer-events: none; }
 .drop-zone-content .btn { pointer-events: auto; }
@@ -296,7 +315,7 @@ tbody tr.incompatible td {
   cursor: pointer;
   user-select: none;
 }
-.category-header:hover { background: rgba(15, 52, 96, 0.8); }
+.category-header:hover { background: rgba(143, 17, 195, 0.15); }
 .category-header .count { color: var(--text-muted); font-size: 0.8rem; }
 .category-header .arrow {
   transition: transform 0.2s;
