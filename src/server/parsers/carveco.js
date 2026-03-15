@@ -61,6 +61,30 @@ const NAME_TYPE_PATTERNS = [
 ];
 
 /**
+ * Convert a CarveCo feedrate value to per-second in the tool's native unit system.
+ * Metric tools → mm/sec, Imperial tools → in/sec.
+ *
+ * CarveCo rateUnits codes:
+ *   0 = mm/sec   (already per-sec)
+ *   1 = mm/min   (÷ 60)
+ *   2 = m/min    (× 1000 ÷ 60)
+ *   3 = in/sec   (already per-sec)
+ *   4 = in/min   (÷ 60)
+ *   5 = ft/min   (× 12 ÷ 60)
+ */
+function carvecoRateToPerSec(value, rateUnits) {
+  switch (rateUnits) {
+    case 0: return value;              // mm/sec → mm/sec
+    case 1: return value / 60;         // mm/min → mm/sec
+    case 2: return value * 1000 / 60;  // m/min  → mm/sec
+    case 3: return value;              // in/sec → in/sec
+    case 4: return value / 60;         // in/min → in/sec
+    case 5: return value * 12 / 60;    // ft/min → in/sec
+    default: return value / 60;        // fallback: assume per-min
+  }
+}
+
+/**
  * Read a UTF-16LE string at a given offset.
  * Format: FF FE FF <length_byte> <utf16le_chars>
  */
@@ -321,7 +345,8 @@ function parseToolRecord(buf, offset) {
   // Validate machining params
   if (!isFinite(feedRate) || !isFinite(spindleSpeed)) return null;
 
-  cursor += 4; // parameter flags (int32)
+  const rateUnits = buf.readInt32LE(cursor); // feedrate unit code
+  cursor += 4;
   const numFlutes = buf[cursor];
   cursor += 1;
 
@@ -331,6 +356,13 @@ function parseToolRecord(buf, offset) {
   if (angleMatch) {
     includedAngle = parseFloat(angleMatch[1]);
   }
+
+  // Convert feedrate to the tool's native per-second value:
+  //   metric tools  → mm/sec
+  //   imperial tools → in/sec
+  // CarveCo rateUnits: 0=mm/s, 1=mm/min, 2=m/min, 3=in/s, 4=in/min, 5=ft/min
+  const feedRateConverted = carvecoRateToPerSec(feedRate, rateUnits);
+  const plungeRateConverted = carvecoRateToPerSec(plungeRate, rateUnits);
 
   return {
     name,
@@ -342,8 +374,8 @@ function parseToolRecord(buf, offset) {
     includedAngle,
     length: 0,
     notes: description,
-    feedRate: feedRate / 60,      // per-min → per-sec
-    plungeRate: plungeRate / 60,  // per-min → per-sec
+    feedRate: feedRateConverted,
+    plungeRate: plungeRateConverted,
     metricTool: toolIsMetric,
     passDepth: 0,
     stepOver,

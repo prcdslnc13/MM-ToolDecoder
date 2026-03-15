@@ -99,9 +99,29 @@ describe('CarveCo Parser', () => {
     assert.strictEqual(halfInch.metricTool, false, 'Should be imperial (metricTool: false)');
     assert.ok(Math.abs(halfInch.diameter - 0.5) < 0.01,
       `Diameter should be ~0.5 inches, got ${halfInch.diameter}`);
-    // feedRate should be in per-second range (raw value ÷ 60)
-    assert.ok(halfInch.feedRate > 0 && halfInch.feedRate < 50,
-      `FeedRate should be in per-second range, got ${halfInch.feedRate}`);
+    // rateUnits=4 (in/min), raw 50 → 50/60 ≈ 0.833 in/sec
+    assert.ok(halfInch.feedRate > 0 && halfInch.feedRate < 5,
+      `FeedRate should be in in/sec range, got ${halfInch.feedRate}`);
+  });
+
+  it('should convert mm/sec feedrates correctly (rateUnits=0)', () => {
+    tools = tools || parseCarveCo(TDB_PATH);
+    // "Conical 0.25 Flat - 15 degrees" in Aluminum is mm/sec (flag=0), raw=13
+    const conical025 = tools.find(t => t.name.includes('Conical 0.25 Flat') && t.category === 'Aluminum');
+    assert.ok(conical025, 'Should find "Conical 0.25 Flat - 15 degrees"');
+    // mm/sec: value should pass through unchanged (≈13)
+    assert.ok(Math.abs(conical025.feedRate - 13) < 0.5,
+      `mm/sec feedRate should be ~13, got ${conical025.feedRate}`);
+  });
+
+  it('should convert m/min feedrates correctly (rateUnits=2)', () => {
+    tools = tools || parseCarveCo(TDB_PATH);
+    // "Conical Flat 0.8 - 30deg" in Aluminum is m/min (flag=2), raw=2
+    const conical08 = tools.find(t => t.name.includes('Conical Flat 0.8 - 30deg') && t.category === 'Aluminum');
+    assert.ok(conical08, 'Should find "Conical Flat 0.8 - 30deg"');
+    // 2 m/min = 2000mm/60 ≈ 33.33 mm/sec
+    assert.ok(Math.abs(conical08.feedRate - 33.33) < 1,
+      `m/min feedRate should be ~33.33 mm/sec, got ${conical08.feedRate}`);
   });
 
   it('should extract V-Bit angles from tool names', () => {
